@@ -1,0 +1,67 @@
+#+TITLE: pills — text as small SVG lozenges for Emacs
+
+=pills= renders a string as a rounded pill: an SVG image on a =display=
+property over the plain text.  The kill ring, isearch, =buffer-substring=
+and text terminals still see the words.  Without SVG the text comes back
+with a face instead.
+
+Colours come from a hue derived from a key (by default the text), so the
+same key always gets the same pill.  Pass =:key= to colour by something
+else, for example an address's domain so every address at one company
+shares a colour.
+
+* Requirements
+
+Emacs 29.1 or newer with SVG image support (=M-: (image-type-available-p 'svg)=).
+
+* Use
+
+#+begin_src emacs-lisp
+(require 'pills)
+
+(pills "external")                          ; hue from the text
+(pills "Jane <jane@example.com>" :key "example.com")
+(pills "55 ★" :bg "#f6e8c8" :fg "#b7791f") ; explicit colours
+(pills "2026-10-13" :columns 11)            ; fixed width, text centred
+(pills-fit "a long label" 8)                ; fixed width, cut with …
+#+end_src
+
+Every pill is a whole number of character cells wide, so pills line up
+in table-like buffers.  =pills-scale= (default 1.0) is the pill height
+relative to the line; 0.8 reads as a tag.
+
+* Styles
+
+=pills-style= is =raised= (a slight top-to-bottom gradient, a soft shadow,
+a hairline highlight along the top; text flat on top), =flat= (one
+colour) or =radial= (the colour fades from the centre to the rim; for a
+glow behind a picture).
+
+* Drawing your own
+
+The primitives are exported so other packages draw the same material:
+
+- =pills-canvas COLUMNS BG DRAW &key scale surface style= — an empty
+  pill of the given width; =DRAW= is called with =(SVG X Y W H)= to put
+  anything inside (a picture, a gauge).
+- =pills-draw-lozenge SVG X Y W H FILL &optional STYLE=
+- =pills-text SVG TEXT X Y W H FG &optional FAMILY=
+- =pills-rgb=, =pills-hex=, =pills-shade=, =pills-dark-p=, =pills-hue-color=
+
+=nngmail= and =efrit= call =pills-draw-lozenge= when this library is loaded,
+so their mode-line and status pills match yours.
+
+* Caveats
+
+The canvas is painted in the surface colour (the default face's
+background, or =:surface=) before the pill is drawn.  Some mode lines
+mishandle image transparency after a =%= construct; an opaque canvas
+sidesteps that.  Do not put a face with a =:background= on the text under
+a mode-line pill: when the mode line is taller than the image, Emacs
+fills the gap with that background.
+
+* Tests
+
+#+begin_example
+make test
+#+end_example
