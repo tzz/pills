@@ -4,7 +4,7 @@
 
 ;; Author: Teodor Zlatanov <tzz@lifelogs.com>
 ;; Maintainer: Teodor Zlatanov <tzz@lifelogs.com>
-;; Version: 0.1.0
+;; Version: 0.1.1
 ;; Package-Requires: ((emacs "29.1"))
 ;; Keywords: faces
 ;; URL: https://github.com/tzz/pills
@@ -67,12 +67,14 @@ tag; 1.0 matches the line."
   "Saturation of the generated pill colours, 0..1."
   :type 'number)
 
-(defcustom pills-background-lightness 0.85
+(defcustom pills-background-lightness 0.88
   "Lightness of the generated pill background, 0..1."
   :type 'number)
 
-(defcustom pills-foreground-lightness 0.30
-  "Lightness of the generated pill text, 0..1."
+(defcustom pills-foreground-lightness 0.18
+  "Lightness of the generated pill text, 0..1.
+Low enough that the text stays legible at small pill sizes; the hue
+of the key still tints it."
   :type 'number)
 
 (defface pills-fallback
