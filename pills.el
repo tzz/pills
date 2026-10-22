@@ -4,7 +4,7 @@
 
 ;; Author: Teodor Zlatanov <tzz@lifelogs.com>
 ;; Maintainer: Teodor Zlatanov <tzz@lifelogs.com>
-;; Version: 0.2.0
+;; Version: 0.2.1
 ;; Package-Requires: ((emacs "29.1"))
 ;; Keywords: faces
 ;; URL: https://github.com/tzz/pills
@@ -91,6 +91,13 @@ of the key still tints it."
 (defun pills-available-p ()
   "Non-nil when pills can be drawn here."
   (and (display-graphic-p) (image-type-available-p 'svg)))
+
+(defcustom pills-text-height 0.7
+  "Height of a pill's text as a fraction of the pill height.
+Larger text is sharper: SVG glyphs are rasterised unhinted, so small
+ones blur against the hinted buffer text around them.  0.7 fills the
+pill; 0.6 leaves more air."
+  :type 'number)
 
 (defcustom pills-style 'raised
   "How pills are drawn.
@@ -200,13 +207,16 @@ afterwards; it sits flat on top.  Ids are unique per call."
 
 (defun pills-text (svg text x y w h fg &optional family)
   "Draw TEXT flat and bold, centred in the box X Y W H on SVG, in FG.
-FAMILY defaults to the default face's.  The font size is 0.6 of H and
-the baseline is nudged for the font's descent, so it centres optically."
-  (let* ((font-size (round (* 0.6 h)))
+FAMILY defaults to the default face's.  The font size is
+`pills-text-height' of H and the baseline is nudged for the font's
+descent, so it centres optically.  Glyph outlines are rendered with
+geometric precision (no stem snapping), which keeps strokes even at
+small sizes."
+  (let* ((font-size (round (* pills-text-height h)))
          (family (format "'%s', ui-monospace, Menlo, monospace"
                          (or family (face-attribute 'default :family) "monospace"))))
     (svg-text svg text :x (+ x (/ w 2.0)) :y (+ y (* h 0.5) (* font-size 0.35))
-              :text-anchor "middle"
+              :text-anchor "middle" :text-rendering "geometricPrecision"
               :font-family family :font-weight "bold" :font-size font-size :fill fg)))
 
 (defun pills-surface-background ()
@@ -253,7 +263,7 @@ that the glyphs at pill size need it."
   (let* ((lh (default-font-height))
          (cw (default-font-width))
          (pill-h (max 10 (round (* scale lh (if (eq pills-style 'raised) 0.93 1.0)))))
-         (glyph (* 0.62 (round (* 0.6 pill-h)))))
+         (glyph (* 0.62 (round (* pills-text-height pill-h)))))
     (max (1+ (string-width text))
          (ceiling (/ (+ (* (string-width text) glyph) (* 2 cw)) (float cw))))))
 
@@ -286,7 +296,7 @@ unavailable."
   (pills--maybe-reset-cache)
   (let* ((key (or key text))
          (surface (or surface (pills-surface-background)))
-         (cache-key (list text key bg fg scale surface columns pills-style))
+         (cache-key (list text key bg fg scale surface columns pills-style pills-text-height))
          (rendered
           (or (gethash cache-key pills--cache)
               (puthash
