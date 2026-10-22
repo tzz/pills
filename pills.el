@@ -4,7 +4,7 @@
 
 ;; Author: Teodor Zlatanov <tzz@lifelogs.com>
 ;; Maintainer: Teodor Zlatanov <tzz@lifelogs.com>
-;; Version: 0.1.1
+;; Version: 0.2.0
 ;; Package-Requires: ((emacs "29.1"))
 ;; Keywords: faces
 ;; URL: https://github.com/tzz/pills
@@ -52,6 +52,7 @@
 (require 'color)
 (require 'svg)
 (require 'dom)
+(require 'lisp-mnt)
 
 (defgroup pills nil
   "Text rendered as small SVG lozenges."
@@ -304,6 +305,40 @@ unavailable."
     (if help-echo
         (propertize rendered 'help-echo help-echo)
       rendered)))
+
+;;;; Reloading
+
+(defvar pills-reload-hook nil
+  "Run after `pills-reload', once the new code is in and the caches are empty.
+For packages that keep their own rendered pills (nngmail, efrit, a Gnus
+line format): redraw there.")
+
+;;;###autoload
+(defun pills-reload ()
+  "Reload pills.el from source and drop every rendered pill.
+Loads the .el (not a stale .elc or .eln), empties `pills--cache' and
+Emacs's image cache, so the next draw uses the new code and colours,
+then runs `pills-reload-hook'.  Buffers that already hold pills keep
+the old images until they are redrawn: in Gnus press \\=`L' in *Group*
+or re-enter the summary; the mode line and tab line redraw by
+themselves."
+  (interactive)
+  (let* ((source (locate-library "pills.el" t))
+         (start (float-time)))
+    (unless source
+      (user-error "Pills-reload: cannot find pills.el on `load-path'"))
+    ;; the full .el name: a bare "pills" would pick a newer .elc or .eln
+    (load source nil t)
+    (clrhash pills--cache)
+    (setq pills--cache-key nil)
+    ;; `clear-image-cache' exists only in an Emacs built with image support
+    (when (fboundp 'clear-image-cache) (ignore-errors (funcall 'clear-image-cache t)))
+    (force-mode-line-update t)
+    (run-hooks 'pills-reload-hook)
+    (message "pills %s reloaded from %s in %.0f ms"
+             (or (lm-version source) "?")
+             (abbreviate-file-name source)
+             (* 1000 (- (float-time) start)))))
 
 (provide 'pills)
 ;;; pills.el ends here

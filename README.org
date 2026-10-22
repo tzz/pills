@@ -60,6 +60,12 @@ sidesteps that.  Do not put a face with a =:background= on the text under
 a mode-line pill: when the mode line is taller than the image, Emacs
 fills the gap with that background.
 
+* Reloading while hacking
+
+=M-x pills-reload= loads =pills.el= from source, empties the pill and
+image caches and runs =pills-reload-hook=, where other packages can
+redraw what they cached.
+
 * Tests
 
 #+begin_example
