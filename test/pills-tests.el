@@ -27,8 +27,7 @@
   "Run BODY as if on a 12x24 px graphical display, keeping SVG documents."
   (declare (indent 0))
   `(cl-letf (((symbol-function 'pills-available-p) (lambda () t))
-             ((symbol-function 'default-font-height) (lambda () 24))
-             ((symbol-function 'default-font-width) (lambda () 12))
+             ((symbol-function 'pills--metrics) (lambda () (cons 24 12)))
              ((symbol-function 'pills-surface-background) (lambda () "#000000"))
              ((symbol-function 'svg-image)
               (lambda (svg &rest _) (list 'image :svg svg))))
@@ -110,7 +109,7 @@
     (should (= 1 (hash-table-count pills--cache)))
     (pills "a" :columns 9)
     (should (= 2 (hash-table-count pills--cache)))
-    (cl-letf (((symbol-function 'default-font-height) (lambda () 30)))
+    (cl-letf (((symbol-function 'pills--metrics) (lambda () (cons 30 12))))
       (pills--maybe-reset-cache)
       (should (= 0 (hash-table-count pills--cache))))))
 

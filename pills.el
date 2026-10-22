@@ -4,7 +4,7 @@
 
 ;; Author: Teodor Zlatanov <tzz@lifelogs.com>
 ;; Maintainer: Teodor Zlatanov <tzz@lifelogs.com>
-;; Version: 0.3.0
+;; Version: 0.3.1
 ;; Package-Requires: ((emacs "29.1"))
 ;; Keywords: faces
 ;; URL: https://github.com/tzz/pills
@@ -240,9 +240,38 @@ small sizes."
 
 ;;;; The pill
 
+(defun pills--frame ()
+  "The frame whose font metrics pills are measured in.
+Timers and startup code run with an arbitrary selected frame (under a
+daemon, the terminal one), so the pills they drew came out a different
+size from the ones drawn interactively, and lines of one buffer carried
+two widths.  Prefer a window showing the current buffer on a visible
+graphic frame, then the focused graphic frame, then any visible graphic
+frame, then the selected one."
+  (let* ((win (get-buffer-window (current-buffer) 'visible))
+         (graphic (lambda (f) (and (frame-live-p f) (frame-visible-p f)
+                                   (display-graphic-p f)))))
+    (cond ((and win (funcall graphic (window-frame win))) (window-frame win))
+          ((and (fboundp 'frame-focus-state)
+                (seq-find (lambda (f) (and (funcall graphic f) (eq (frame-focus-state f) t)))
+                          (frame-list))))
+          ((seq-find graphic (frame-list)))
+          (t (selected-frame)))))
+
+(defun pills--metrics ()
+  "Line height and cell width to draw at, as (HEIGHT . WIDTH) in pixels.
+Measured on `pills--frame' with `frame-char-height' and
+`frame-char-width': the frame's default font, the same in every window
+and at any time, unlike `default-font-height', which follows the
+selected window's face remapping and the selected frame."
+  (let ((f (pills--frame)))
+    (cons (frame-char-height f) (frame-char-width f))))
+
 (defun pills--maybe-reset-cache ()
-  "Empty the cache when the default font metrics changed."
-  (let ((key (cons (default-font-height) (default-font-width))))
+  "Empty the cache when the font metrics it was built for changed.
+The metrics are also part of every cache key, so pills drawn for two
+frames with different fonts never mix; this only bounds the cache."
+  (let ((key (pills--metrics)))
     (unless (equal key pills--cache-key)
       (clrhash pills--cache)
       (setq pills--cache-key key))))
@@ -254,10 +283,11 @@ whatever belongs inside: `pills' puts text there, other callers draw
 pictures.  SCALE and SURFACE are as in `pills'; STYLE is passed to
 `pills-draw-lozenge' (default `pills-style').  Returns the image
 descriptor, sized to cover COLUMNS cells of the line."
-  (let* ((lh (default-font-height))
+  (let* ((metrics (pills--metrics))
+         (lh (car metrics))
+         (cw (cdr metrics))
          (style (or style pills-style))
          (pill-h (max 10 (round (* scale lh (if (eq style 'raised) 0.93 1.0)))))
-         (cw (default-font-width))
          (width (* columns cw))
          (inset (/ cw 3.0))
          (top (/ (- lh pill-h) 2.0))
@@ -272,8 +302,9 @@ descriptor, sized to cover COLUMNS cells of the line."
   "Character cells a pill of TEXT at SCALE covers.
 The text plus one cell of air, or more when the font is wide enough
 that the glyphs at pill size need it."
-  (let* ((lh (default-font-height))
-         (cw (default-font-width))
+  (let* ((metrics (pills--metrics))
+         (lh (car metrics))
+         (cw (cdr metrics))
          (pill-h (max 10 (round (* scale lh (if (eq pills-style 'raised) 0.93 1.0)))))
          (glyph (* 0.62 (round (* pills-text-height pill-h)))))
     (max (1+ (string-width text))
@@ -308,7 +339,8 @@ unavailable."
   (pills--maybe-reset-cache)
   (let* ((key (or key text))
          (surface (or surface (pills-surface-background)))
-         (cache-key (list text key bg fg scale surface columns pills-style pills-text-height pills-text-colors))
+         (cache-key (list text key bg fg scale surface columns pills-style
+                          pills-text-height pills-text-colors (pills--metrics)))
          (rendered
           (or (gethash cache-key pills--cache)
               (puthash
