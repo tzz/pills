@@ -6,7 +6,9 @@ and text terminals still see the words.  Without SVG the text comes back
 with a face instead.
 
 Colours come from a hue derived from a key (by default the text), so the
-same key always gets the same pill.  Pass =:key= to colour by something
+same key always gets the same pill.  The hue goes into the background;
+the text is near-black or near-white (=pills-text-colors=), whichever
+contrasts, so labels stay sharp at small sizes.  Pass =:key= to colour by something
 else, for example an address's domain so every address at one company
 shares a colour.
 

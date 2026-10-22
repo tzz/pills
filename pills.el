@@ -4,7 +4,7 @@
 
 ;; Author: Teodor Zlatanov <tzz@lifelogs.com>
 ;; Maintainer: Teodor Zlatanov <tzz@lifelogs.com>
-;; Version: 0.2.1
+;; Version: 0.3.0
 ;; Package-Requires: ((emacs "29.1"))
 ;; Keywords: faces
 ;; URL: https://github.com/tzz/pills
@@ -73,10 +73,18 @@ tag; 1.0 matches the line."
   :type 'number)
 
 (defcustom pills-foreground-lightness 0.18
-  "Lightness of the generated pill text, 0..1.
-Low enough that the text stays legible at small pill sizes; the hue
-of the key still tints it."
+  "Lightness of the generated dark variant of a key's colour, 0..1.
+Used for the background of the selected tab and similar strong pills;
+pill text itself is not tinted, see `pills-text-colors'."
   :type 'number)
+
+(defcustom pills-text-colors '("#111111" . "#f4f4f4")
+  "Text colours (ON-LIGHT . ON-DARK) for pills without an explicit :fg.
+The hue of a key goes into the background only; the text is one of
+these, chosen by the background's lightness, so every label has the
+same high contrast whatever its hue.  A tinted same-hue text, the
+earlier default, read soft at small sizes."
+  :type '(cons color color))
 
 (defface pills-fallback
   '((t :inherit font-lock-constant-face))
@@ -132,6 +140,10 @@ batch gives wrong values for hex colours."
 (defun pills-dark-p (color)
   "Whether COLOR is on the dark half of the lightness scale."
   (< (nth 2 (apply #'color-rgb-to-hsl (pills-rgb color))) 0.5))
+
+(defun pills-text-color (background)
+  "The text colour from `pills-text-colors' that contrasts with BACKGROUND."
+  (if (pills-dark-p background) (cdr pills-text-colors) (car pills-text-colors)))
 
 (defun pills-hue-color (key light)
   "A stable colour for KEY as #rrggbb; LIGHT non-nil gives the pale variant."
@@ -296,7 +308,7 @@ unavailable."
   (pills--maybe-reset-cache)
   (let* ((key (or key text))
          (surface (or surface (pills-surface-background)))
-         (cache-key (list text key bg fg scale surface columns pills-style pills-text-height))
+         (cache-key (list text key bg fg scale surface columns pills-style pills-text-height pills-text-colors))
          (rendered
           (or (gethash cache-key pills--cache)
               (puthash
@@ -304,10 +316,11 @@ unavailable."
                (if (not (pills-available-p))
                    (propertize text 'face 'pills-fallback)
                  (let* ((columns (max (or columns 0) (pills--columns text scale)))
-                        (fg (or fg (pills-hue-color key nil))))
+                        (bg (or bg (pills-hue-color key t)))
+                        (fg (or fg (pills-text-color bg))))
                    (propertize (truncate-string-to-width text columns nil ?\s)
                                'display
-                               (pills-canvas columns (or bg (pills-hue-color key t))
+                               (pills-canvas columns bg
                                                 (lambda (svg x y w h)
                                                   (pills-text svg text x y w h fg))
                                                 :scale scale :surface surface))))
