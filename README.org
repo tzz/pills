@@ -74,6 +74,10 @@ redraw what they cached.
 make test
 #+end_example
 
+* License
+
+Apache License 2.0; see =LICENSE=.
+
 * Authorship
 
 This package was written with substantial assistance from Claude
