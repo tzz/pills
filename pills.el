@@ -4,7 +4,7 @@
 
 ;; Author: Teodor Zlatanov <tzz@lifelogs.com>
 ;; Maintainer: Teodor Zlatanov <tzz@lifelogs.com>
-;; Version: 0.3.1
+;; Version: 0.3.2
 ;; Package-Requires: ((emacs "29.1"))
 ;; Keywords: faces
 ;; URL: https://github.com/tzz/pills
@@ -257,14 +257,37 @@ frame, then the selected one."
           ((seq-find graphic (frame-list)))
           (t (selected-frame)))))
 
-(defun pills--metrics ()
-  "Line height and cell width to draw at, as (HEIGHT . WIDTH) in pixels.
-Measured on `pills--frame' with `frame-char-height' and
-`frame-char-width': the frame's default font, the same in every window
-and at any time, unlike `default-font-height', which follows the
-selected window's face remapping and the selected frame."
+(defvar-local pills--buffer-metrics nil
+  "The (HEIGHT . WIDTH) pills in this buffer were drawn at, or nil.
+Set by the first pill drawn into the buffer; every later pill uses it.
+A buffer's lines are drawn at different moments by different callers
+\(the user pressing a key, a timer under some other frame), and each
+pill's pixel width must match its neighbours', so the measurement is
+pinned per buffer rather than taken per call.  It is dropped when a
+window of this buffer shows other metrics (the font changed, the buffer
+moved to a frame with another font).")
+
+(defun pills--measure ()
+  "Line height and cell width of `pills--frame', as (HEIGHT . WIDTH)."
   (let ((f (pills--frame)))
     (cons (frame-char-height f) (frame-char-width f))))
+
+(defun pills--metrics ()
+  "Line height and cell width to draw at, as (HEIGHT . WIDTH) in pixels.
+Pinned per buffer in `pills--buffer-metrics' (see there).  Measured
+with `frame-char-height' and `frame-char-width' on `pills--frame': the
+frame's default font, the same in every window, unlike
+`default-font-height', which follows the selected window and frame."
+  (let* ((win (get-buffer-window (current-buffer) 'visible))
+         (shown (and win (display-graphic-p (window-frame win))
+                     (cons (frame-char-height (window-frame win))
+                           (frame-char-width (window-frame win))))))
+    (cond
+     ;; the buffer is on screen: that frame's metrics are the truth, and
+     ;; a pin that disagrees is stale
+     (shown (setq pills--buffer-metrics shown))
+     (pills--buffer-metrics)
+     (t (setq pills--buffer-metrics (pills--measure))))))
 
 (defun pills--maybe-reset-cache ()
   "Empty the cache when the font metrics it was built for changed.
